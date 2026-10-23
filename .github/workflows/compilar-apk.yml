@@ -3,26 +3,45 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+
 jobs:
   apk:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Comprobar y descomprimir el proyecto
+        shell: bash
+        run: |
+          test -f ControlFireTV_Android.zip || { echo "::error::Falta subir ControlFireTV_Android.zip a la raíz del repositorio"; exit 1; }
+          unzip -oq ControlFireTV_Android.zip
+          test -f ControlFireTV_Android/app/build.gradle || { echo "::error::No se encontró el proyecto Android dentro del ZIP"; exit 1; }
+
+      - name: Preparar Java
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
-      - name: Instalar Android SDK 35
+
+      - name: Preparar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Instalar plataforma Android
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
-      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Preparar Gradle
+        uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Compilar
-        run: gradle assembleDebug --no-daemon
-      - name: Entregar APK
+
+      - name: Compilar APK debug
+        working-directory: ControlFireTV_Android
+        run: gradle :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Publicar APK
         uses: actions/upload-artifact@v4
         with:
           name: ControlFireTV-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: ControlFireTV_Android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
